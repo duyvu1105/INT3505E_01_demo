@@ -1,8 +1,11 @@
 from flask import Flask, request, jsonify
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # DB GIẢ LẬP
 books: Dict[int, Dict[str, Any]] = {}

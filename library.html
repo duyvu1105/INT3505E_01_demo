@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Quản lý Thư viện</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Hệ thống Quản lý Thư viện</h1>
+            <div class="health-status" id="healthStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">Đang kiểm tra...</span>
+            </div>
+        </header>
+
+        <nav class="tab-navigation">
+            <button class="tab-btn active" data-tab="books">Quản lý Sách</button>
+            <button class="tab-btn" data-tab="users">Quản lý Người dùng</button>
+            <button class="tab-btn" data-tab="loans">Quản lý Mượn/Trả</button>
+        </nav>
+
+        <!-- Tab Quản lý Sách -->
+        <div id="books-tab" class="tab-content active">
+            <div class="section-header">
+                <h2>Quản lý Sách</h2>
+                <button class="btn btn-primary" onclick="showAddBookModal()">+ Thêm sách mới</button>
+            </div>
+            
+            <div class="books-grid" id="booksGrid">
+                <!-- Books will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Tab Quản lý Người dùng -->
+        <div id="users-tab" class="tab-content">
+            <div class="section-header">
+                <h2>Quản lý Người dùng</h2>
+                <button class="btn btn-primary" onclick="showAddUserModal()">+ Thêm người dùng</button>
+            </div>
+            
+            <div class="users-list" id="usersList">
+                <!-- Users will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Tab Quản lý Mượn/Trả -->
+        <div id="loans-tab" class="tab-content">
+            <div class="section-header">
+                <h2>Quản lý Mượn/Trả</h2>
+                <div class="loan-controls">
+                    <button class="btn btn-primary" onclick="showBorrowModal()">📖 Mượn sách</button>
+                    <button class="btn btn-secondary" onclick="showReturnModal()">📚 Trả sách</button>
+                    <select id="loanFilter" onchange="filterLoans()">
+                        <option value="all">Tất cả</option>
+                        <option value="active">Đang mượn</option>
+                        <option value="returned">Đã trả</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="loans-list" id="loansList">
+                <!-- Loans will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal thêm/sửa sách -->
+    <div id="bookModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="bookModalTitle">Thêm sách mới</h3>
+                <span class="close" onclick="closeModal('bookModal')">&times;</span>
+            </div>
+            <form id="bookForm">
+                <div class="form-group">
+                    <label for="bookTitle">Tiêu đề:</label>
+                    <input type="text" id="bookTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="bookAuthor">Tác giả:</label>
+                    <input type="text" id="bookAuthor" required>
+                </div>
+                <div class="form-group">
+                    <label for="totalCopies">Số lượng:</label>
+                    <input type="number" id="totalCopies" min="1" value="1" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('bookModal')">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal thêm người dùng -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Thêm người dùng mới</h3>
+                <span class="close" onclick="closeModal('userModal')">&times;</span>
+            </div>
+            <form id="userForm">
+                <div class="form-group">
+                    <label for="userName">Tên:</label>
+                    <input type="text" id="userName" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('userModal')">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal mượn sách -->
+    <div id="borrowModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Mượn sách</h3>
+                <span class="close" onclick="closeModal('borrowModal')">&times;</span>
+            </div>
+            <form id="borrowForm">
+                <div class="form-group">
+                    <label for="borrowBookSelect">Chọn sách:</label>
+                    <select id="borrowBookSelect" required>
+                        <option value="">-- Chọn sách --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="borrowUserSelect">Chọn người dùng:</label>
+                    <select id="borrowUserSelect" required>
+                        <option value="">-- Chọn người dùng --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="borrowDays">Số ngày mượn:</label>
+                    <input type="number" id="borrowDays" min="1" value="14" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('borrowModal')">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Mượn</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal trả sách -->
+    <div id="returnModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Trả sách</h3>
+                <span class="close" onclick="closeModal('returnModal')">&times;</span>
+            </div>
+            <form id="returnForm">
+                <div class="form-group">
+                    <label for="returnLoanSelect">Chọn lượt mượn:</label>
+                    <select id="returnLoanSelect" required>
+                        <option value="">-- Chọn lượt mượn --</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('returnModal')">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Trả</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
