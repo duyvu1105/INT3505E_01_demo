@@ -17,35 +17,18 @@ let items = [
     { id: 1, name: 'Item 1' },
     { id: 2, name: 'Item 2' },
 ];
+// Stateless: Mỗi request là độc lập
+// Server không cần lưu trạng thái giữa các request
 
 app.get('/items', (req, res) => {
-    res.set('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
     res.json(items);
 });
 
-// 1. Tài nguyên được xác định bằng URL
-// 2. Thao tác qua biểu diễn (server trả về JSON)
-// 3. Thông điệp tự mô tả (Mỗi message chứa đủ thông tin)
-// 4. Phản hồi bao gồm các liên kết (HATEOAS)
-
-// Stateless: Mỗi request là độc lập
-// Server không cần lưu trạng thái giữa các request
-app.get('/items/:id', authenticateToken, (req, res) => {
+app.get('/items/:id', (req, res) => {
     const item = items.find(i => i.id === parseInt(req.params.id));
     if (!item) return res.status(404).send('Item not found');
-    
-    // HATEOAS: Thêm links để client biết các hành động có thể thực hiện
-    const response = {
-        ...item,
-        _links: {
-            self: { href: `/items/${item.id}` },           // Link đến chính nó
-            update: { href: `/items/${item.id}`, method: 'PUT' },    // Link để update
-            delete: { href: `/items/${item.id}`, method: 'DELETE' }, // Link để delete
-            collection: { href: '/items' }                 // Link về collection
-        }
-    };
-    
-    res.json(response);
+
+    res.json(item);
 });
 
 app.post('/items', authenticateToken, (req, res) => {
