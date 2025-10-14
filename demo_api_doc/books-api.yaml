@@ -3,7 +3,7 @@ info:
   title: Books Management API
   description: |
     API đơn giản để quản lý sách.
-    Hỗ trợ các chức năng CRUD cơ bản.
+    Hỗ trợ các chức năng cơ bản.
   version: 1.0.0
   contact:
     name: API Support
