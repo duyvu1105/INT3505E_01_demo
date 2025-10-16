@@ -1,8 +1,5 @@
 const db = require("../data/database");
-
-/**
- * Books Controller - Xử lý logic cho sách
- */
+const { Book } = require("../models");
 
 // GET /api/books - Lấy tất cả sách với filter và phân trang
 const getAllBooks = (req, res) => {
@@ -102,18 +99,18 @@ const getBookById = (req, res) => {
 
 // POST /api/books - Tạo sách mới
 const createBook = (req, res) => {
-  const { title, author, isbn, publishedYear, category, quantity } = req.body;
-
-  // Validation
-  if (!title || !author || !isbn) {
+  // Validate using Book model
+  const validation = Book.validate(req.body);
+  if (!validation.isValid) {
     return res.status(400).json({
       success: false,
-      message: "Title, Author và ISBN là bắt buộc",
+      message: "Validation failed",
+      errors: validation.errors,
     });
   }
 
   // Kiểm tra ISBN đã tồn tại
-  const existingBook = db.books.find((b) => b.isbn === isbn);
+  const existingBook = db.books.find((b) => b.isbn === req.body.isbn);
   if (existingBook) {
     return res.status(400).json({
       success: false,
@@ -121,17 +118,8 @@ const createBook = (req, res) => {
     });
   }
 
-  const newBook = {
-    id: db.getNextBookId(),
-    title,
-    author,
-    isbn,
-    publishedYear: publishedYear || null,
-    category: category || "Uncategorized",
-    quantity: quantity || 1,
-    available: quantity || 1,
-  };
-
+  // Tạo book mới sử dụng Book model
+  const newBook = Book.create(req.body, db.getNextBookId());
   db.books.push(newBook);
 
   res.status(201).json({
@@ -144,7 +132,6 @@ const createBook = (req, res) => {
 // PUT /api/books/:id - Cập nhật sách
 const updateBook = (req, res) => {
   const { id } = req.params;
-  const { title, author, isbn, publishedYear, category, quantity } = req.body;
 
   const bookIndex = db.books.findIndex((b) => b.id === parseInt(id));
 
@@ -155,18 +142,21 @@ const updateBook = (req, res) => {
     });
   }
 
-  // Validation
-  if (!title || !author || !isbn) {
+  // Validate using Book model
+  const validation = Book.validate(req.body);
+  if (!validation.isValid) {
     return res.status(400).json({
       success: false,
-      message: "Title, Author và ISBN là bắt buộc",
+      message: "Validation failed",
+      errors: validation.errors,
     });
   }
 
   const currentBook = db.books[bookIndex];
-  const borrowed = currentBook.quantity - currentBook.available;
+  const borrowed = Book.getBorrowedCount(currentBook);
 
-  // Update book
+  // Update book với data mới
+  const { title, author, isbn, publishedYear, category, quantity } = req.body;
   db.books[bookIndex] = {
     ...currentBook,
     title,
@@ -197,9 +187,9 @@ const deleteBook = (req, res) => {
     });
   }
 
-  // Kiểm tra sách có đang được mượn không
+  // Kiểm tra sách có đang được mượn không bằng Book model
   const book = db.books[bookIndex];
-  if (book.available < book.quantity) {
+  if (Book.hasBorrowedBooks(book)) {
     return res.status(400).json({
       success: false,
       message: "Không thể xóa sách đang được mượn",
@@ -218,10 +208,10 @@ const deleteBook = (req, res) => {
 const searchBooks = (req, res) => {
   const {
     q, // Query string chung
-    title, 
-    author, 
-    isbn, 
-    category, 
+    title,
+    author,
+    isbn,
+    category,
     yearFrom, // Năm xuất bản từ
     yearTo, // Năm xuất bản đến
     minAvailable, // Số lượng available tối thiểu

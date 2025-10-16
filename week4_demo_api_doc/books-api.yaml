@@ -2,8 +2,11 @@ openapi: 3.0.3
 info:
   title: Books Management API
   description: |
-    API đơn giản để quản lý sách.
-    Hỗ trợ các chức năng cơ bản.
+    API quản lý sách với xác thực JWT.
+
+    **Tài khoản demo:**
+    - Username: `admin` / Password: `admin123` (role: admin)
+    - Username: `user` / Password: `user123` (role: user)
   version: 1.0.0
   contact:
     name: API Support
@@ -14,10 +17,157 @@ servers:
     description: Development server
 
 tags:
+  - name: authentication
+    description: Xác thực và quản lý người dùng
   - name: books
     description: Quản lý sách
 
 paths:
+  /auth/register:
+    post:
+      tags:
+        - authentication
+      summary: Đăng ký tài khoản mới
+      description: Tạo tài khoản người dùng mới trong hệ thống
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - email
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  example: "newuser"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "password123"
+                email:
+                  type: string
+                  format: email
+                  example: "newuser@example.com"
+      responses:
+        "201":
+          description: Đăng ký thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Đăng ký thành công"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/User"
+                      token:
+                        type: string
+                        description: JWT token
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        "400":
+          description: Dữ liệu không hợp lệ hoặc username đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/login:
+    post:
+      tags:
+        - authentication
+      summary: Đăng nhập
+      description: Đăng nhập và nhận JWT token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: "admin"
+                password:
+                  type: string
+                  example: "admin123"
+      responses:
+        "200":
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Đăng nhập thành công"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/User"
+                      token:
+                        type: string
+                        description: JWT token
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Thông tin đăng nhập không đúng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: "Username hoặc password không đúng"
+
+  /auth/me:
+    get:
+      tags:
+        - authentication
+      summary: Lấy thông tin người dùng hiện tại
+      description: Lấy thông tin người dùng đang đăng nhập (yêu cầu token)
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Thông tin người dùng
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /books:
     get:
       tags:
@@ -60,8 +210,10 @@ paths:
       tags:
         - books
       summary: Thêm sách mới
-      description: Tạo một sách mới trong hệ thống
+      description: Tạo một sách mới trong hệ thống (yêu cầu xác thực)
       operationId: createBook
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -96,6 +248,10 @@ paths:
                   price: 45.99
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -144,8 +300,10 @@ paths:
       tags:
         - books
       summary: Cập nhật thông tin sách
-      description: Cập nhật toàn bộ thông tin của một sách
+      description: Cập nhật toàn bộ thông tin của một sách (yêu cầu xác thực)
       operationId: updateBook
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -188,6 +346,10 @@ paths:
                   price: 39.99
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -197,8 +359,10 @@ paths:
       tags:
         - books
       summary: Xóa sách
-      description: Xóa một sách khỏi hệ thống
+      description: Xóa một sách khỏi hệ thống (yêu cầu xác thực)
       operationId: deleteBook
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -224,13 +388,49 @@ paths:
               example:
                 success: true
                 message: "Xóa sách thành công"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Nhập JWT token nhận được từ endpoint `/auth/login` hoặc `/auth/register`.
+
+        Format: `Bearer YOUR_JWT_TOKEN`
+
   schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID duy nhất của người dùng
+          example: 1
+        username:
+          type: string
+          description: Tên đăng nhập
+          example: "admin"
+        email:
+          type: string
+          format: email
+          description: Email người dùng
+          example: "admin@example.com"
+        role:
+          type: string
+          enum: [user, admin]
+          description: Vai trò của người dùng
+          example: "admin"
+
     Book:
       type: object
       required:
@@ -301,6 +501,26 @@ components:
           example: "Error message"
 
   responses:
+    Unauthorized:
+      description: Chưa xác thực - Token không được cung cấp
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: "Token không được cung cấp"
+
+    Forbidden:
+      description: Token không hợp lệ hoặc đã hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: "Token không hợp lệ hoặc đã hết hạn"
+
     BadRequest:
       description: Yêu cầu không hợp lệ
       content:

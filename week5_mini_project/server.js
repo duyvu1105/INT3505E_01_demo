@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 
 const bookRoutes = require("./routes/bookRoutes");
+const bookRoutesv2 = require("./routes/bookRoutersv2");
 const userRoutes = require("./routes/userRoutes");
 const borrowingRoutes = require("./routes/borrowingRoutes");
 
@@ -23,6 +24,7 @@ app.use((req, res, next) => {
 app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/borrowings", borrowingRoutes);
+app.use("/api/v2/books", bookRoutesv2);
 
 // Root route
 app.get("/", (req, res) => {

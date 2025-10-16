@@ -1,4 +1,5 @@
 const db = require("../data/database");
+const { User } = require("../models");
 
 // GET /api/users - Lấy tất cả người dùng
 const getAllUsers = (req, res) => {
@@ -38,18 +39,18 @@ const getUserById = (req, res) => {
 
 // POST /api/users - Tạo người dùng mới
 const createUser = (req, res) => {
-  const { name, email, phone, address } = req.body;
-
-  // Validation
-  if (!name || !email || !phone) {
+  // Validate using User model
+  const validation = User.validate(req.body);
+  if (!validation.isValid) {
     return res.status(400).json({
       success: false,
-      message: "Name, Email và Phone là bắt buộc",
+      message: "Validation failed",
+      errors: validation.errors,
     });
   }
 
   // Kiểm tra email đã tồn tại
-  const existingUser = db.users.find((u) => u.email === email);
+  const existingUser = db.users.find((u) => u.email === req.body.email);
   if (existingUser) {
     return res.status(400).json({
       success: false,
@@ -57,26 +58,8 @@ const createUser = (req, res) => {
     });
   }
 
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({
-      success: false,
-      message: "Email không hợp lệ",
-    });
-  }
-
-  const newUser = {
-    id: db.getNextUserId(),
-    name,
-    email,
-    phone,
-    address: address || "",
-    membershipDate: new Date().toISOString().split("T")[0],
-    status: "active",
-    borrowedBooks: [],
-  };
-
+  // Tạo user mới sử dụng User model
+  const newUser = User.create(req.body, db.getNextUserId());
   db.users.push(newUser);
 
   res.status(201).json({
@@ -89,7 +72,6 @@ const createUser = (req, res) => {
 // PUT /api/users/:id - Cập nhật người dùng
 const updateUser = (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, address, status } = req.body;
 
   const userIndex = db.users.findIndex((u) => u.id === parseInt(id));
 
@@ -100,15 +82,18 @@ const updateUser = (req, res) => {
     });
   }
 
-  // Validation
-  if (!name || !email || !phone) {
+  // Validate using User model
+  const validation = User.validate(req.body);
+  if (!validation.isValid) {
     return res.status(400).json({
       success: false,
-      message: "Name, Email và Phone là bắt buộc",
+      message: "Validation failed",
+      errors: validation.errors,
     });
   }
 
   const currentUser = db.users[userIndex];
+  const { name, email, phone, address, status } = req.body;
 
   // Update user
   db.users[userIndex] = {
@@ -139,9 +124,9 @@ const deleteUser = (req, res) => {
     });
   }
 
-  // Kiểm tra user có sách đang mượn không
+  // Kiểm tra user có sách đang mượn không bằng User model
   const user = db.users[userIndex];
-  if (user.borrowedBooks.length > 0) {
+  if (User.hasBorrowedBooks(user)) {
     return res.status(400).json({
       success: false,
       message: "Không thể xóa người dùng đang mượn sách",

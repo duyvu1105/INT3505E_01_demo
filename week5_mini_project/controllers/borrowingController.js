@@ -1,4 +1,5 @@
 const db = require("../data/database");
+const { Borrowing, Book, User } = require("../models");
 
 // GET /api/borrowings - Lấy tất cả phiếu mượn
 const getAllBorrowings = (req, res) => {
@@ -52,15 +53,17 @@ const getBorrowingById = (req, res) => {
 
 // POST /api/borrowings - Mượn sách
 const createBorrowing = (req, res) => {
-  const { userId, bookId } = req.body;
-
-  // Validation
-  if (!userId || !bookId) {
+  // Validate using Borrowing model
+  const validation = Borrowing.validate(req.body);
+  if (!validation.isValid) {
     return res.status(400).json({
       success: false,
-      message: "User ID và Book ID là bắt buộc",
+      message: "Validation failed",
+      errors: validation.errors,
     });
   }
+
+  const { userId, bookId } = req.body;
 
   // Kiểm tra user tồn tại
   const user = db.users.find((u) => u.id === parseInt(userId));
@@ -80,45 +83,32 @@ const createBorrowing = (req, res) => {
     });
   }
 
-  // Kiểm tra user status
-  if (user.status !== "active") {
-    return res.status(400).json({
-      success: false,
-      message: "Tài khoản không ở trạng thái active",
-    });
+  // Kiểm tra user có thể mượn sách không bằng User model
+  if (!User.canBorrow(user)) {
+    if (!User.isActive(user)) {
+      return res.status(400).json({
+        success: false,
+        message: "Tài khoản không ở trạng thái active",
+      });
+    }
+    if (User.hasReachedBorrowLimit(user)) {
+      return res.status(400).json({
+        success: false,
+        message: "Đã đạt giới hạn mượn sách (tối đa 5 quyển)",
+      });
+    }
   }
 
-  // Kiểm tra giới hạn mượn sách (tối đa 5 quyển)
-  if (user.borrowedBooks.length >= 5) {
-    return res.status(400).json({
-      success: false,
-      message: "Đã đạt giới hạn mượn sách (tối đa 5 quyển)",
-    });
-  }
-
-  // Kiểm tra sách có sẵn
-  if (book.available <= 0) {
+  // Kiểm tra sách có sẵn bằng Book model
+  if (!Book.isAvailable(book)) {
     return res.status(400).json({
       success: false,
       message: "Sách không còn sẵn để mượn",
     });
   }
 
-  // Tạo ngày mượn và ngày trả dự kiến
-  const borrowDate = new Date();
-  const dueDate = new Date();
-  dueDate.setDate(dueDate.getDate() + 14); // 14 ngày mượn
-
-  const newBorrowing = {
-    id: db.getNextBorrowingId(),
-    userId: parseInt(userId),
-    bookId: parseInt(bookId),
-    borrowDate: borrowDate.toISOString().split("T")[0],
-    dueDate: dueDate.toISOString().split("T")[0],
-    returnDate: null,
-    status: "borrowed",
-    fine: 0,
-  };
+  // Tạo borrowing mới sử dụng Borrowing model
+  const newBorrowing = Borrowing.create(req.body, db.getNextBorrowingId());
 
   // Cập nhật database
   db.borrowings.push(newBorrowing);
@@ -152,18 +142,9 @@ const returnBook = (req, res) => {
     });
   }
 
-  // Tính phí phạt nếu trả muộn
-  const returnDate = new Date();
-  const dueDate = new Date(borrowing.dueDate);
-  const returnDateStr = returnDate.toISOString().split("T")[0];
-
-  let fine = 0;
-  if (returnDate > dueDate) {
-    const daysOverdue = Math.ceil(
-      (returnDate - dueDate) / (1000 * 60 * 60 * 24)
-    );
-    fine = daysOverdue * 1000; // 1000 VNĐ/ngày
-  }
+  // Tính phí phạt bằng Borrowing model
+  const returnDateStr = new Date().toISOString().split("T")[0];
+  const fine = Borrowing.calculateFine(borrowing, returnDateStr);
 
   // Cập nhật borrowing
   borrowing.returnDate = returnDateStr;
@@ -203,17 +184,9 @@ const getOverdueBorrowings = (req, res) => {
     (b) => b.status === "borrowed" && b.dueDate < today
   );
 
-  // Cập nhật status thành overdue
+  // Cập nhật status thành overdue bằng Borrowing model
   overdueBorrowings.forEach((b) => {
-    b.status = "overdue";
-
-    // Tính fine
-    const dueDate = new Date(b.dueDate);
-    const todayDate = new Date(today);
-    const daysOverdue = Math.ceil(
-      (todayDate - dueDate) / (1000 * 60 * 60 * 24)
-    );
-    b.fine = daysOverdue * 1000;
+    Borrowing.updateOverdueStatus(b);
   });
 
   res.json({
