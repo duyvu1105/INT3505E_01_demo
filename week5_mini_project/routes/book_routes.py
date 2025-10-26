@@ -6,11 +6,11 @@ import base64
 
 book_bp = Blueprint('books', __name__)
 
-# page-based pagination : localhost:3000/api/books?category=Fiction&page=1&limit=5
+# page-based pagination : localhost:3000/api/books?page=1&limit=5
 @book_bp.route('', methods=['GET'])
 def get_books():
     """Lấy danh sách sách với filter và pagination"""
-    category = request.args.get('category')
+    # category = request.args.get('category')
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 10))
     
@@ -20,13 +20,14 @@ def get_books():
     query = 'SELECT * FROM books'
     params = []
     
-    if category:
-        query += ' WHERE category = ?'
-        params.append(category)
+    # if category:
+    #     query += ' WHERE category = ?'
+    #     params.append(category)
     
     # Pagination
     offset = (page - 1) * limit
-    query += f' LIMIT {limit} OFFSET {offset}'
+    query += ' LIMIT ? OFFSET ?'
+    params.extend([limit, offset]) # Thêm limit và offset vào list params
     
     cursor.execute(query, params)
     books = [dict(row) for row in cursor.fetchall()]
@@ -83,6 +84,7 @@ def get_books_v3():
     query = 'SELECT * FROM books WHERE 1=1'
     params = []
     
+    cursor_data = None
     # Decode cursor
     if cursor_param:
         cursor_data = decode_cursor(cursor_param)
@@ -97,14 +99,18 @@ def get_books_v3():
                 params.append(cursor_data['first_id'])
             query += ' ORDER BY id DESC LIMIT ?'
 
+    else:
+        # Lần đầu lấy dữ liệu
+        query += ' ORDER BY id ASC LIMIT ?'
     
     params.append(limit)
     
     cursor.execute(query, params)
     books = [dict(row) for row in cursor.fetchall()]
-    
-    if cursor_data['direction'] == 'prev':
-        books.reverse()
+
+    if cursor_data:
+        if cursor_data['direction'] == 'prev':
+            books.reverse()
     
     # Tạo cursors theo logic chuẩn
     next_cursor = None
@@ -229,6 +235,7 @@ def update_book(book_id):
     
     return jsonify({'success': True, 'message': 'Cập nhật thành công', 'data': updated_book})
 
+# http://localhost:3000/api/books/1
 @book_bp.route('/<int:book_id>', methods=['DELETE'])
 def delete_book(book_id):
     """Xóa sách"""
