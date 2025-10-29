@@ -13,8 +13,8 @@ app.config.update(
     SESSION_COOKIE_SECURE=False,
 )
 
-FB_CLIENT_ID = os.environ.get('FACEBOOK_CLIENT_ID', '4077949769134571')
-FB_CLIENT_SECRET = os.environ.get('FACEBOOK_CLIENT_SECRET', '14e122125b5881a9f5a13b297ff48494')
+FB_CLIENT_ID = os.environ.get('FACEBOOK_CLIENT_ID')
+FB_CLIENT_SECRET = os.environ.get('FACEBOOK_CLIENT_SECRET')
 oauth = OAuth(app)
 oauth.register(
     name='facebook',
@@ -37,7 +37,6 @@ def api_login():
 
 @app.route('/api/authorize')
 def api_authorize():
-    # Exchange code for token (authlib will validate state stored in session)
     print('api_authorize: request.cookies =', dict(request.cookies))
     token = oauth.facebook.authorize_access_token()
     resp = oauth.facebook.get('me?fields=id,name,email')
