@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Login with Facebook (OAuth2.0 Demo)</title>
+  </head>
+  <body style="font-family: sans-serif; padding: 2rem">
+    <h2>Đăng nhập với Facebook</h2>
+    <button id="loginBtn">Đăng nhập Facebook</button>
+    <script>
+      document.getElementById("loginBtn").onclick = function () {
+        
+        window.location.href = `/api/login`;
+      };
+    </script>
+  </body>
+</html>
