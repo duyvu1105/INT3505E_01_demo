@@ -26,7 +26,7 @@ oauth.register(
     client_kwargs={'scope': 'email'},
 )
 
-@app.route('/')
+@app.route('/') 
 def index():
     return render_template('index.html')
 
@@ -37,7 +37,6 @@ def api_login():
 
 @app.route('/api/authorize')
 def api_authorize():
-    print('api_authorize: request.cookies =', dict(request.cookies))
     token = oauth.facebook.authorize_access_token()
     resp = oauth.facebook.get('me?fields=id,name,email')
     profile = resp.json()

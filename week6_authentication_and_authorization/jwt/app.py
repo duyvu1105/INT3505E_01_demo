@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+from flask_swagger_ui import get_swaggerui_blueprint
 from functools import wraps
 import jwt
 from datetime import datetime, timedelta
@@ -10,7 +11,13 @@ CORS(app)
 
 # Cấu hình JWT
 JWT_SECRET = "your-secret-key-change-this-in-production"
-JWT_EXPIRES_IN = timedelta(hours=24)
+
+# JWT cấu hình
+JWT_EXPIRES_IN = timedelta(minutes=1)
+JWT_REFRESH_EXPIRES_IN = timedelta(days=7)
+
+# Lưu refresh token tạm thời (demo, production nên lưu DB hoặc Redis)
+refresh_tokens = {}
 
 # Database giả lập cho sách
 books = [
@@ -44,7 +51,7 @@ users = [
     {
         "id": 1,
         "username": "admin",
-        "password": "admin123",
+        "password": "admin123",  # Trong thực tế nên hash password
         "email": "admin@example.com",
         "role": "admin",
     },
@@ -61,9 +68,11 @@ next_user_id = 3
 
 
 # ============= JWT UTILITIES =============
-def generate_token(payload):
-    """Tạo JWT token"""
-    payload["exp"] = datetime.utcnow() + JWT_EXPIRES_IN
+
+def generate_token(payload, expires_in=JWT_EXPIRES_IN):
+    """Tạo JWT token với thời hạn tùy chọn"""
+    payload = payload.copy()
+    payload["exp"] = datetime.utcnow() + expires_in
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 
@@ -123,6 +132,22 @@ def require_admin(f):
     return decorated_function
 
 
+# ============= SWAGGER UI CONFIGURATION =============
+SWAGGER_URL = "/api-docs"
+API_URL = "/books-api.yaml"
+
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={
+        "app_name": "Books API Documentation",
+        "docExpansion": "list",
+        "defaultModelsExpandDepth": 3,
+    },
+)
+
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+
 
 # ============= AUTHENTICATION ROUTES =============
 @app.route("/api/auth/register", methods=["POST"])
@@ -167,10 +192,16 @@ def register():
     users.append(new_user)
     next_user_id += 1
 
-    # Tạo JWT token
-    token = generate_token(
-        {"id": new_user["id"], "username": new_user["username"], "role": new_user["role"]}
+    # Tạo JWT token và refresh token
+    access_token = generate_token(
+        {"id": new_user["id"], "username": new_user["username"], "role": new_user["role"]},
+        expires_in=JWT_EXPIRES_IN,
     )
+    refresh_token = generate_token(
+        {"id": new_user["id"], "username": new_user["username"], "role": new_user["role"], "type": "refresh"},
+        expires_in=JWT_REFRESH_EXPIRES_IN,
+    )
+    refresh_tokens[new_user["id"]] = refresh_token
 
     return (
         jsonify(
@@ -184,7 +215,8 @@ def register():
                         "email": new_user["email"],
                         "role": new_user["role"],
                     },
-                    "token": token,
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
                 },
             }
         ),
@@ -223,10 +255,16 @@ def login():
             401,
         )
 
-    # Tạo JWT token
-    token = generate_token(
-        {"id": user["id"], "username": user["username"], "role": user["role"]}
+    # Tạo JWT token và refresh token
+    access_token = generate_token(
+        {"id": user["id"], "username": user["username"], "role": user["role"]},
+        expires_in=JWT_EXPIRES_IN,
     )
+    refresh_token = generate_token(
+        {"id": user["id"], "username": user["username"], "role": user["role"], "type": "refresh"},
+        expires_in=JWT_REFRESH_EXPIRES_IN,
+    )
+    refresh_tokens[user["id"]] = refresh_token
 
     return jsonify(
         {
@@ -239,10 +277,41 @@ def login():
                     "email": user["email"],
                     "role": user["role"],
                 },
-                "token": token,
+                "access_token": access_token,
+                "refresh_token": refresh_token,
             },
         }
     )
+
+# ============= REFRESH TOKEN ROUTE =============
+@app.route("/api/auth/refresh", methods=["POST"])
+def refresh_access_token():
+    """Cấp lại access token từ refresh token"""
+    data = request.get_json()
+    refresh_token = data.get("refresh_token")
+    if not refresh_token:
+        return jsonify({"success": False, "message": "Refresh token là bắt buộc"}), 400
+    try:
+        decoded = jwt.decode(refresh_token, JWT_SECRET, algorithms=["HS256"])
+        if decoded.get("type") != "refresh":
+            return jsonify({"success": False, "message": "Token không hợp lệ"}), 403
+        user_id = decoded.get("id")
+        # Kiểm tra refresh token có hợp lệ không (demo: so sánh với token đã cấp)
+        if refresh_tokens.get(user_id) != refresh_token:
+            return jsonify({"success": False, "message": "Refresh token không hợp lệ"}), 403
+        # Cấp lại access token mới
+        user = next((u for u in users if u["id"] == user_id), None)
+        if not user:
+            return jsonify({"success": False, "message": "Không tìm thấy user"}), 404
+        access_token = generate_token(
+            {"id": user["id"], "username": user["username"], "role": user["role"]},
+            expires_in=JWT_EXPIRES_IN,
+        )
+        return jsonify({"success": True, "access_token": access_token})
+    except jwt.ExpiredSignatureError:
+        return jsonify({"success": False, "message": "Refresh token đã hết hạn"}), 403
+    except jwt.InvalidTokenError:
+        return jsonify({"success": False, "message": "Refresh token không hợp lệ"}), 403
 
 
 @app.route("/api/auth/me", methods=["GET"])
@@ -349,6 +418,7 @@ def update_book(book_id):
 
 @app.route("/api/books/<int:book_id>", methods=["DELETE"])
 @authenticate_token
+@require_admin
 def delete_book(book_id):
     """Xóa sách (YÊU CẦU xác thực)"""
     global books
@@ -363,7 +433,32 @@ def delete_book(book_id):
     return jsonify({"success": True, "message": "Xóa sách thành công"})
 
 
+# ============= STATIC FILES =============
+@app.route("/books-api.yaml")
+def serve_yaml():
+    """Serve YAML file"""
+    return send_from_directory(".", "books-api.yaml")
+
+
+@app.route("/")
+def index():
+    """Redirect to API documentation"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta http-equiv="refresh" content="0; url=/api-docs">
+    </head>
+    <body>
+        <p>Redirecting to <a href="/api-docs">API Documentation</a>...</p>
+    </body>
+    </html>
+    """
+
 
 if __name__ == "__main__":
     print("Server đang chạy tại: http://localhost:3000")
+    print("API endpoint: http://localhost:3000/api/books")
+    print("Swagger UI (API Docs): http://localhost:3000/api-docs")
+    print("OpenAPI YAML: http://localhost:3000/books-api.yaml")
     app.run(debug=True, port=3000)
