@@ -1,0 +1,811 @@
+openapi: 3.0.3
+info:
+  title: Books Management API
+  description: |
+    API quản lý sách với xác thực JWT.
+
+    **Tài khoản demo:**
+    - Username: `admin` / Password: `admin123` (role: admin)
+    - Username: `user` / Password: `user123` (role: user)
+  contact:
+    name: API Support
+    email: support@example.com
+  version: 1.0.0
+servers:
+- url: http://localhost:3000/api
+  description: Development server
+tags:
+- name: authentication
+  description: Xác thực và quản lý người dùng
+- name: books
+  description: Quản lý sách
+paths:
+  /auth/register:
+    post:
+      tags:
+      - authentication
+      summary: Đăng ký tài khoản mới
+      description: Tạo tài khoản người dùng mới trong hệ thống
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/auth_register_body"
+        required: true
+      responses:
+        "201":
+          description: Đăng ký thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/inline_response_201"
+        "400":
+          description: Dữ liệu không hợp lệ hoặc username đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-openapi-router-controller: swagger_server.controllers.authentication_controller
+  /auth/login:
+    post:
+      tags:
+      - authentication
+      summary: Đăng nhập
+      description: Đăng nhập và nhận JWT token
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/auth_login_body"
+        required: true
+      responses:
+        "200":
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/inline_response_200"
+      x-openapi-router-controller: swagger_server.controllers.authentication_controller
+  /auth/refresh:
+    post:
+      tags:
+      - authentication
+      summary: Cấp lại access token từ refresh token
+      description: |
+        Nhận access token mới khi access token cũ hết hạn, sử dụng refresh token hợp lệ.
+      operationId: refresh_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/auth_refresh_body"
+        required: true
+      responses:
+        "200":
+          description: Cấp lại access token thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/inline_response_200_1"
+        "400":
+          description: Yêu cầu không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Title và Author là bắt buộc
+        "403":
+          description: Token không hợp lệ hoặc đã hết hạn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Token không hợp lệ hoặc đã hết hạn
+        "404":
+          description: Không tìm thấy tài nguyên
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Không tìm thấy sách
+      x-openapi-router-controller: swagger_server.controllers.authentication_controller
+  /auth/me:
+    get:
+      tags:
+      - authentication
+      summary: Lấy thông tin người dùng hiện tại
+      description: Lấy thông tin người dùng đang đăng nhập (yêu cầu token)
+      operationId: get_current_user
+      responses:
+        "200":
+          description: Thông tin người dùng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/inline_response_200_2"
+        "401":
+          description: Chưa xác thực - Token không được cung cấp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Token không được cung cấp
+        "403":
+          description: Token không hợp lệ hoặc đã hết hạn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Token không hợp lệ hoặc đã hết hạn
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.authentication_controller
+  /books:
+    get:
+      tags:
+      - books
+      summary: Lấy danh sách tất cả sách
+      description: Trả về danh sách tất cả sách trong hệ thống
+      operationId: get_all_books
+      responses:
+        "200":
+          description: Danh sách sách được trả về thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/inline_response_200_3"
+              example:
+                success: true
+                data:
+                - id: 1
+                  title: Clean Code
+                  author: Robert C. Martin
+                  year: 2008
+                  price: 45.99
+                - id: 2
+                  title: The Pragmatic Programmer
+                  author: Andrew Hunt
+                  year: 1999
+                  price: 42.5
+        "500":
+          description: Lỗi máy chủ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Đã xảy ra lỗi máy chủ
+      x-openapi-router-controller: swagger_server.controllers.books_controller
+    post:
+      tags:
+      - books
+      summary: Thêm sách mới
+      description: Tạo một sách mới trong hệ thống (yêu cầu xác thực)
+      operationId: create_book
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookInput"
+            example:
+              title: Clean Code
+              author: Robert C. Martin
+              year: 2008
+              price: 45.99
+        required: true
+      responses:
+        "201":
+          description: Sách được tạo thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/inline_response_201_1"
+              example:
+                success: true
+                data:
+                  id: 4
+                  title: Clean Code
+                  author: Robert C. Martin
+                  year: 2008
+                  price: 45.99
+        "400":
+          description: Yêu cầu không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Title và Author là bắt buộc
+        "401":
+          description: Chưa xác thực - Token không được cung cấp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Token không được cung cấp
+        "403":
+          description: Token không hợp lệ hoặc đã hết hạn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Token không hợp lệ hoặc đã hết hạn
+        "500":
+          description: Lỗi máy chủ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Đã xảy ra lỗi máy chủ
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.books_controller
+  /books/{id}:
+    get:
+      tags:
+      - books
+      summary: Lấy thông tin sách theo ID
+      description: Trả về thông tin chi tiết của một sách
+      operationId: get_book_by_id
+      parameters:
+      - name: id
+        in: path
+        description: ID của sách
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+          example: 1
+      responses:
+        "200":
+          description: Thông tin sách
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/inline_response_201_1"
+              example:
+                success: true
+                data:
+                  id: 1
+                  title: Clean Code
+                  author: Robert C. Martin
+                  year: 2008
+                  price: 45.99
+        "404":
+          description: Không tìm thấy tài nguyên
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Không tìm thấy sách
+        "500":
+          description: Lỗi máy chủ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Đã xảy ra lỗi máy chủ
+      x-openapi-router-controller: swagger_server.controllers.books_controller
+    put:
+      tags:
+      - books
+      summary: Cập nhật thông tin sách
+      description: Cập nhật toàn bộ thông tin của một sách (yêu cầu xác thực)
+      operationId: update_book
+      parameters:
+      - name: id
+        in: path
+        description: ID của sách
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+          example: 1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookInput"
+            example:
+              title: Clean Code - Updated
+              author: Robert C. Martin
+              year: 2008
+              price: 39.99
+        required: true
+      responses:
+        "200":
+          description: Sách được cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/inline_response_201_1"
+              example:
+                success: true
+                data:
+                  id: 1
+                  title: Clean Code - Updated
+                  author: Robert C. Martin
+                  year: 2008
+                  price: 39.99
+        "400":
+          description: Yêu cầu không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Title và Author là bắt buộc
+        "401":
+          description: Chưa xác thực - Token không được cung cấp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Token không được cung cấp
+        "403":
+          description: Token không hợp lệ hoặc đã hết hạn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Token không hợp lệ hoặc đã hết hạn
+        "404":
+          description: Không tìm thấy tài nguyên
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Không tìm thấy sách
+        "500":
+          description: Lỗi máy chủ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Đã xảy ra lỗi máy chủ
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.books_controller
+    delete:
+      tags:
+      - books
+      summary: Xóa sách
+      description: Xóa một sách khỏi hệ thống (yêu cầu xác thực)
+      operationId: delete_book
+      parameters:
+      - name: id
+        in: path
+        description: ID của sách
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+          example: 1
+      responses:
+        "200":
+          description: Sách được xóa thành công
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/inline_response_200_4"
+              example:
+                success: true
+                message: Xóa sách thành công
+        "401":
+          description: Chưa xác thực - Token không được cung cấp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Token không được cung cấp
+        "403":
+          description: Token không hợp lệ hoặc đã hết hạn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Token không hợp lệ hoặc đã hết hạn
+        "404":
+          description: Không tìm thấy tài nguyên
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Không tìm thấy sách
+        "500":
+          description: Lỗi máy chủ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                message: Đã xảy ra lỗi máy chủ
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.books_controller
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID duy nhất của người dùng
+          example: 1
+        username:
+          type: string
+          description: Tên đăng nhập
+          example: admin
+        email:
+          type: string
+          description: Email người dùng
+          format: email
+          example: admin@example.com
+        role:
+          type: string
+          description: Vai trò của người dùng
+          example: admin
+          enum:
+          - user
+          - admin
+      example:
+        role: admin
+        id: 1
+        email: admin@example.com
+        username: admin
+    Book:
+      required:
+      - author
+      - id
+      - title
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID duy nhất của sách
+          example: 1
+        title:
+          type: string
+          description: Tên sách
+          example: Clean Code
+        author:
+          type: string
+          description: Tác giả
+          example: Robert C. Martin
+        year:
+          type: integer
+          description: Năm xuất bản
+          example: 2008
+        price:
+          type: number
+          description: Giá sách
+          format: float
+          example: 45.99
+      example:
+        year: 2008
+        author: Robert C. Martin
+        price: 45.99
+        id: 1
+        title: Clean Code
+    BookInput:
+      required:
+      - author
+      - title
+      type: object
+      properties:
+        title:
+          minLength: 1
+          type: string
+          description: Tên sách
+          example: Clean Code
+        author:
+          minLength: 1
+          type: string
+          description: Tác giả
+          example: Robert C. Martin
+        year:
+          type: integer
+          description: Năm xuất bản
+          example: 2008
+        price:
+          minimum: 0
+          type: number
+          description: Giá sách
+          format: float
+          example: 45.99
+    Error:
+      required:
+      - message
+      - success
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Error message
+    auth_register_body:
+      required:
+      - email
+      - password
+      - username
+      type: object
+      properties:
+        username:
+          minLength: 3
+          type: string
+          example: newuser
+        password:
+          minLength: 6
+          type: string
+          example: password123
+        email:
+          type: string
+          format: email
+          example: newuser@example.com
+    inline_response_201:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Đăng ký thành công
+        data:
+          $ref: "#/components/schemas/inline_response_201_data"
+      example:
+        data:
+          access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          user:
+            role: admin
+            id: 1
+            email: admin@example.com
+            username: admin
+        success: true
+        message: Đăng ký thành công
+    auth_login_body:
+      required:
+      - password
+      - username
+      type: object
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          example: admin123
+    inline_response_200:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Đăng nhập thành công
+        data:
+          $ref: "#/components/schemas/inline_response_201_data"
+      example:
+        data:
+          access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          user:
+            role: admin
+            id: 1
+            email: admin@example.com
+            username: admin
+        success: true
+        message: Đăng nhập thành công
+    auth_refresh_body:
+      required:
+      - refresh_token
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh token hợp lệ
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    inline_response_200_1:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        access_token:
+          type: string
+          description: Access token mới
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      example:
+        access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        success: true
+    inline_response_200_2:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/User"
+      example:
+        data:
+          role: admin
+          id: 1
+          email: admin@example.com
+          username: admin
+        success: true
+    inline_response_200_3:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Book"
+      example:
+        data:
+        - year: 2008
+          author: Robert C. Martin
+          price: 45.99
+          id: 1
+          title: Clean Code
+        - year: 2008
+          author: Robert C. Martin
+          price: 45.99
+          id: 1
+          title: Clean Code
+        success: true
+    inline_response_201_1:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/Book"
+      example:
+        data:
+          year: 2008
+          author: Robert C. Martin
+          price: 45.99
+          id: 1
+          title: Clean Code
+        success: true
+    inline_response_200_4:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Xóa sách thành công
+      example:
+        success: true
+        message: Xóa sách thành công
+    inline_response_201_data:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        access_token:
+          type: string
+          description: Access token (JWT)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refresh_token:
+          type: string
+          description: "Refresh token (JWT, dùng để lấy access token mới)"
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      example:
+        access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          role: admin
+          id: 1
+          email: admin@example.com
+          username: admin
+  responses:
+    Unauthorized:
+      description: Chưa xác thực - Token không được cung cấp
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: Token không được cung cấp
+    Forbidden:
+      description: Token không hợp lệ hoặc đã hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: Token không hợp lệ hoặc đã hết hạn
+    BadRequest:
+      description: Yêu cầu không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: Title và Author là bắt buộc
+    NotFound:
+      description: Không tìm thấy tài nguyên
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: Không tìm thấy sách
+    InternalServerError:
+      description: Lỗi máy chủ
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: Đã xảy ra lỗi máy chủ
+  securitySchemes:
+    bearerAuth:
+      type: http
+      description: |
+        Nhập JWT token nhận được từ endpoint `/auth/login` hoặc `/auth/register`.
+
+        Format: `Bearer YOUR_JWT_TOKEN`
+      scheme: bearer
+      bearerFormat: JWT
+      x-bearerInfoFunc: swagger_server.controllers.authorization_controller.check_bearerAuth
+

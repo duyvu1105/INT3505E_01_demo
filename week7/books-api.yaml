@@ -1,0 +1,591 @@
+openapi: 3.0.3
+info:
+  title: Books Management API
+  description: |
+    API quản lý sách với xác thực JWT.
+
+    **Tài khoản demo:**
+    - Username: `admin` / Password: `admin123` (role: admin)
+    - Username: `user` / Password: `user123` (role: user)
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+
+tags:
+  - name: authentication
+    description: Xác thực và quản lý người dùng
+  - name: books
+    description: Quản lý sách
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - authentication
+      summary: Đăng ký tài khoản mới
+      description: Tạo tài khoản người dùng mới trong hệ thống
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - email
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  example: "newuser"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "password123"
+                email:
+                  type: string
+                  format: email
+                  example: "newuser@example.com"
+      responses:
+        "201":
+          description: Đăng ký thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Đăng ký thành công"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/User"
+                      access_token:
+                        type: string
+                        description: Access token (JWT)
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      refresh_token:
+                        type: string
+                        description: Refresh token (JWT, dùng để lấy access token mới)
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        "400":
+          description: Dữ liệu không hợp lệ hoặc username đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/login:
+    post:
+      tags:
+        - authentication
+      summary: Đăng nhập
+      description: Đăng nhập và nhận JWT token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: "admin"
+                password:
+                  type: string
+                  example: "admin123"
+      responses:
+        "200":
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Đăng nhập thành công"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/User"
+                      access_token:
+                        type: string
+                        description: Access token (JWT)
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      refresh_token:
+                        type: string
+                        description: Refresh token (JWT, dùng để lấy access token mới)
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  /auth/refresh:
+    post:
+      tags:
+        - authentication
+      summary: Cấp lại access token từ refresh token
+      description: |
+        Nhận access token mới khi access token cũ hết hạn, sử dụng refresh token hợp lệ.
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  description: Refresh token hợp lệ
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        "200":
+          description: Cấp lại access token thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  access_token:
+                    type: string
+                    description: Access token mới
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /auth/me:
+    get:
+      tags:
+        - authentication
+      summary: Lấy thông tin người dùng hiện tại
+      description: Lấy thông tin người dùng đang đăng nhập (yêu cầu token)
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Thông tin người dùng
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /books:
+    get:
+      tags:
+        - books
+      summary: Lấy danh sách tất cả sách
+      description: Trả về danh sách tất cả sách trong hệ thống
+      operationId: getAllBooks
+      responses:
+        "200":
+          description: Danh sách sách được trả về thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Book"
+              example:
+                success: true
+                data:
+                  - id: 1
+                    title: "Clean Code"
+                    author: "Robert C. Martin"
+                    year: 2008
+                    price: 45.99
+                  - id: 2
+                    title: "The Pragmatic Programmer"
+                    author: "Andrew Hunt"
+                    year: 1999
+                    price: 42.50
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - books
+      summary: Thêm sách mới
+      description: Tạo một sách mới trong hệ thống (yêu cầu xác thực)
+      operationId: createBook
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookInput"
+            example:
+              title: "Clean Code"
+              author: "Robert C. Martin"
+              year: 2008
+              price: 45.99
+      responses:
+        "201":
+          description: Sách được tạo thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Book"
+              example:
+                success: true
+                data:
+                  id: 4
+                  title: "Clean Code"
+                  author: "Robert C. Martin"
+                  year: 2008
+                  price: 45.99
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /books/{id}:
+    get:
+      tags:
+        - books
+      summary: Lấy thông tin sách theo ID
+      description: Trả về thông tin chi tiết của một sách
+      operationId: getBookById
+      parameters:
+        - name: id
+          in: path
+          description: ID của sách
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        "200":
+          description: Thông tin sách
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Book"
+              example:
+                success: true
+                data:
+                  id: 1
+                  title: "Clean Code"
+                  author: "Robert C. Martin"
+                  year: 2008
+                  price: 45.99
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags:
+        - books
+      summary: Cập nhật thông tin sách
+      description: Cập nhật toàn bộ thông tin của một sách (yêu cầu xác thực)
+      operationId: updateBook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: ID của sách
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookInput"
+            example:
+              title: "Clean Code - Updated"
+              author: "Robert C. Martin"
+              year: 2008
+              price: 39.99
+      responses:
+        "200":
+          description: Sách được cập nhật thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Book"
+              example:
+                success: true
+                data:
+                  id: 1
+                  title: "Clean Code - Updated"
+                  author: "Robert C. Martin"
+                  year: 2008
+                  price: 39.99
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags:
+        - books
+      summary: Xóa sách
+      description: Xóa một sách khỏi hệ thống (yêu cầu xác thực)
+      operationId: deleteBook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: ID của sách
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        "200":
+          description: Sách được xóa thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Xóa sách thành công
+              example:
+                success: true
+                message: "Xóa sách thành công"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Nhập JWT token nhận được từ endpoint `/auth/login` hoặc `/auth/register`.
+
+        Format: `Bearer YOUR_JWT_TOKEN`
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID duy nhất của người dùng
+          example: 1
+        username:
+          type: string
+          description: Tên đăng nhập
+          example: "admin"
+        email:
+          type: string
+          format: email
+          description: Email người dùng
+          example: "admin@example.com"
+        role:
+          type: string
+          enum: [user, admin]
+          description: Vai trò của người dùng
+          example: "admin"
+
+    Book:
+      type: object
+      required:
+        - id
+        - title
+        - author
+      properties:
+        id:
+          type: integer
+          description: ID duy nhất của sách
+          example: 1
+        title:
+          type: string
+          description: Tên sách
+          example: "Clean Code"
+        author:
+          type: string
+          description: Tác giả
+          example: "Robert C. Martin"
+        year:
+          type: integer
+          description: Năm xuất bản
+          example: 2008
+        price:
+          type: number
+          format: float
+          description: Giá sách
+          example: 45.99
+
+    BookInput:
+      type: object
+      required:
+        - title
+        - author
+      properties:
+        title:
+          type: string
+          description: Tên sách
+          minLength: 1
+          example: "Clean Code"
+        author:
+          type: string
+          description: Tác giả
+          minLength: 1
+          example: "Robert C. Martin"
+        year:
+          type: integer
+          description: Năm xuất bản
+          example: 2008
+        price:
+          type: number
+          format: float
+          description: Giá sách
+          minimum: 0
+          example: 45.99
+
+    Error:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error message"
+
+  responses:
+    Unauthorized:
+      description: Chưa xác thực - Token không được cung cấp
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: "Token không được cung cấp"
+
+    Forbidden:
+      description: Token không hợp lệ hoặc đã hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: "Token không hợp lệ hoặc đã hết hạn"
+
+    BadRequest:
+      description: Yêu cầu không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: "Title và Author là bắt buộc"
+
+    NotFound:
+      description: Không tìm thấy tài nguyên
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: "Không tìm thấy sách"
+
+    InternalServerError:
+      description: Lỗi máy chủ
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            success: false
+            message: "Đã xảy ra lỗi máy chủ"
