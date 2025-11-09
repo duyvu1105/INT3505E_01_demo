@@ -1,0 +1,289 @@
+{
+	"info": {
+		"_postman_id": "c6dfd6ef-21dc-418a-a1d4-6051306b1d0f",
+		"name": "Week8",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "49332477",
+		"_collection_link": "https://duy1105k-5809302.postman.co/workspace/Duy-V%C5%A9's-Workspace~b8eedd04-d755-412a-8d69-e2070bad2c3f/collection/49332477-c6dfd6ef-21dc-418a-a1d4-6051306b1d0f?action=share&source=collection_link&creator=49332477"
+	},
+	"item": [
+		{
+			"name": "API Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200 OK\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"// Chuyển đổi Response Body sang đối tượng JSON\r",
+							"var jsonData = pm.response.json();\r",
+							"\r",
+							"// 1. Kiểm tra xem trường chứa token có tồn tại hay không\r",
+							"pm.test(\"Response contains an access token\", function () {\r",
+							"    // Thay 'token' bằng tên trường chứa token thực tế của bạn\r",
+							"    pm.expect(jsonData.data.access_token).to.exist; \r",
+							"});\r",
+							"\r",
+							"// 2. LƯU TOKEN VÀO BIẾN MÔI TRƯỜNG (Environment Variable)\r",
+							"// Biến môi trường 'authToken' sẽ được tạo/cập nhật với giá trị token mới\r",
+							"pm.environment.set(\"authToken\", jsonData.data.access_token); \r",
+							"\r",
+							"console.log(\"Auth Token saved for Newman: \" + pm.environment.get(\"authToken\"));"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"username\": \"admin\",\r\n  \"password\": \"admin123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/auth/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"auth",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Info",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{authToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/auth/me",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"auth",
+						"me"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add new book",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{authToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"author\": \"Robert C. Martin\",\r\n  \"price\": 45.99,\r\n  \"title\": \"Clean Code\",\r\n  \"year\": 2008\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/books",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"books"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get all books",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Kiểm tra trạng thái HTTP\r",
+							"pm.test(\"Status code is 200 OK\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"// Chuyển đổi Response Body sang đối tượng JSON\r",
+							"var jsonData = pm.response.json();\r",
+							"\r",
+							"// Truy cập vào mảng sách thông qua trường 'data'\r",
+							"var booksArray = jsonData.data; \r",
+							"\r",
+							"// Kiểm tra xem trường 'data' có tồn tại và có phải là mảng không\r",
+							"pm.test(\"Response contains an array of books under 'data'\", function () {\r",
+							"    pm.expect(booksArray).to.be.an('array');\r",
+							"});\r",
+							"\r",
+							"if (booksArray && booksArray.length > 0) {\r",
+							"    // 1. Lấy cuốn sách đầu tiên (phần tử thứ 0)\r",
+							"    var firstBook = booksArray[0];\r",
+							"\r",
+							"    // 2. Trích xuất ID của cuốn sách đầu tiên. \r",
+							"    // Dựa trên JSON, bạn có thể sử dụng trường 'id' hoặc trường '_id.$oid'\r",
+							"    // Ta ưu tiên dùng trường 'id' vì nó đơn giản hơn: \"id\": \"691042607d217448ffc82db0\"\r",
+							"    var firstBookId = firstBook.id; \r",
+							"\r",
+							"    // 3. Kiểm tra xem ID có tồn tại không\r",
+							"    pm.test(\"First book ID exists\", function () {\r",
+							"        pm.expect(firstBookId).to.be.a('string');\r",
+							"    });\r",
+							"\r",
+							"    // 4. LƯU ID VÀO BIẾN MÔI TRƯỜNG\r",
+							"    pm.environment.set(\"firstBookId\", firstBookId); \r",
+							"\r",
+							"    console.log(\"Successfully saved first book ID: \" + pm.environment.get(\"firstBookId\"));\r",
+							"} else {\r",
+							"    // Nếu mảng rỗng\r",
+							"    pm.expect(false, \"List of books is empty, cannot retrieve ID.\").to.be.true;\r",
+							"}"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/books",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"books"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get book by ID",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{authToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"author\": \"Robert C. Martin\",\r\n  \"price\": 45.99,\r\n  \"title\": \"Clean Code\",\r\n  \"year\": 2008\r\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/books/{{firstBookId}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"books",
+						"{{firstBookId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update book",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{authToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"author\": \"Robert C. Martin\",\r\n  \"price\": 39.99,\r\n  \"title\": \"Clean Code - Updated\",\r\n  \"year\": 2008\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/books/{{firstBookId}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"books",
+						"{{firstBookId}}"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

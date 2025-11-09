@@ -6,14 +6,16 @@ import json
 from bson.objectid import ObjectId # Để xử lý ObjectId
 from bson.json_util import dumps, loads # Để xử lý JSON hóa ObjectId
 from dotenv import load_dotenv
+import certifi
+
 load_dotenv()
 
 mongodb_username = os.getenv('MONGODB_USERNAME')
 mongodb_password = os.getenv('MONGODB_PASSWORD')
-uri = f"mongodb+srv://{mongodb_username}:{mongodb_password}@cluster0.4auoddj.mongodb.net/?appName=Cluster0"
+uri = f"mongodb+srv://{mongodb_username}:{mongodb_password}@cluster0.4auoddj.mongodb.net/?retryWrites=true&w=majority&tls=true&appName=Cluster0"
 
 # Create a new client and connect to the server
-client = MongoClient(uri, server_api=ServerApi('1'))
+client = MongoClient(uri, server_api=ServerApi('1'), tls=True, tlsCAFile=certifi.where())
 
 # Dữ liệu mẫu của bạn
 books_data = [
