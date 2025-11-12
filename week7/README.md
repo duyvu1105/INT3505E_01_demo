@@ -47,3 +47,7 @@ docker build -t swagger_server .
 # starting up a container
 docker run -p 8080:8080 swagger_server
 ```
+
+
+```test```
+python -m pytest swagger_server\test\test_authentication_controller.py -v
