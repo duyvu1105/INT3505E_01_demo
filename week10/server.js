@@ -11,10 +11,8 @@ app.use(express.json());
 app.use(logger.httpLogger); // Log mọi HTTP request
 app.use(metricsMiddleware); // Track metrics
 
-// Apply general rate limiter cho toàn bộ app
-app.use(generalLimiter);
-
-// Routes
+// Routes - Đăng ký /health và /metrics TRƯỚC khi apply rate limiter
+// để Prometheus scraping không bị block
 
 // 1. Health check endpoint (không rate limit)
 app.get('/health', (req, res) => {
@@ -31,6 +29,9 @@ app.get('/metrics', async (req, res) => {
   res.set('Content-Type', register.contentType);
   res.end(await register.metrics());
 });
+
+// Apply general rate limiter cho các API endpoints (sau /health và /metrics)
+app.use(generalLimiter);
 
 // 3. API endpoints với rate limiting
 app.get('/api/data', apiLimiter, (req, res) => {
@@ -71,7 +72,7 @@ app.post('/api/auth/login', strictLimiter, (req, res) => {
     });
   }
 
-  // Demo: simple check (thực tế cần kiểm tra database)
+  // Demo: simple check
   if (username === 'admin' && password === 'password123') {
     logger.info('Login successful', { username });
     res.json({ 

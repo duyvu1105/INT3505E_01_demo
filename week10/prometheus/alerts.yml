@@ -1,0 +1,137 @@
+# Alert Rules for Week10 API Monitoring
+
+groups:
+  - name: week10_api_alerts
+    interval: 30s
+    rules:
+      # Alert 1: High Error Rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(week10_api_http_requests_total{status_code=~"5.."}[5m])) 
+            / 
+            sum(rate(week10_api_http_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "High error rate detected ({{ $value | humanizePercentage }})"
+          description: "Error rate is above 5% for more than 2 minutes. Current value: {{ $value | humanizePercentage }}"
+
+      # Alert 2: High 4xx Client Error Rate
+      - alert: HighClientErrorRate
+        expr: |
+          (
+            sum(rate(week10_api_http_requests_total{status_code=~"4.."}[5m])) 
+            / 
+            sum(rate(week10_api_http_requests_total[5m]))
+          ) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+          category: client_errors
+        annotations:
+          summary: "High 4xx error rate ({{ $value | humanizePercentage }})"
+          description: "Client error rate (4xx) is above 20% for more than 5 minutes."
+
+      # Alert 3: High Request Latency (P95)
+      - alert: HighRequestLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(week10_api_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 1.0
+        for: 3m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High request latency detected (P95: {{ $value }}s)"
+          description: "95th percentile latency is above 1 second for more than 3 minutes."
+
+      # Alert 4: Very High Request Latency (P99)
+      - alert: VeryHighRequestLatency
+        expr: |
+          histogram_quantile(0.99, 
+            sum(rate(week10_api_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2.0
+        for: 2m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "Very high request latency (P99: {{ $value }}s)"
+          description: "99th percentile latency is above 2 seconds."
+
+      # Alert 5: High Rate Limit Hits
+      - alert: HighRateLimitHits
+        expr: rate(week10_api_rate_limit_hits_total[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+          category: rate_limiting
+        annotations:
+          summary: "High rate limit hits detected"
+          description: "Rate limit is being hit frequently ({{ $value }} hits/sec). Route: {{ $labels.route }}"
+
+      # Alert 6: Application Down
+      - alert: ApplicationDown
+        expr: up{job="week10-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Week10 API is down"
+          description: "The application has been down for more than 1 minute."
+
+      # Alert 7: High Memory Usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            process_resident_memory_bytes{job="week10-api"} 
+            / 
+            1024 / 1024
+          ) > 500
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+        annotations:
+          summary: "High memory usage ({{ $value }}MB)"
+          description: "Application memory usage is above 500MB for more than 5 minutes."
+
+      # Alert 8: No Requests Received
+      - alert: NoRequestsReceived
+        expr: rate(week10_api_http_requests_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: traffic
+        annotations:
+          summary: "No requests received in the last 5 minutes"
+          description: "The application hasn't received any requests. Possible issue with load balancer or network."
+
+      # Alert 9: High Active Requests
+      - alert: HighActiveRequests
+        expr: week10_api_active_requests > 50
+        for: 2m
+        labels:
+          severity: warning
+          category: saturation
+        annotations:
+          summary: "High number of active requests ({{ $value }})"
+          description: "More than 50 requests are being processed simultaneously. Possible bottleneck."
+
+      # Alert 10: Login Endpoint High Error Rate
+      - alert: LoginEndpointErrors
+        expr: |
+          rate(week10_api_http_requests_total{route="/api/auth/login",status_code=~"4..|5.."}[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High error rate on login endpoint"
+          description: "Login endpoint is experiencing {{ $value }} errors/sec. Possible brute force attack or system issue."

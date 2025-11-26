@@ -1,0 +1,44 @@
+# Prometheus Configuration for Week10 API Monitoring
+
+global:
+  scrape_interval: 15s       # Scrape targets mỗi 15 giây
+  evaluation_interval: 15s   # Evaluate rules mỗi 15 giây
+  external_labels:
+    cluster: 'week10-demo'
+    environment: 'development'
+
+# Alertmanager configuration (optional - uncomment nếu dùng Alertmanager)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Load alert rules
+rule_files:
+  - 'alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Job 1: Week10 API Application
+  - job_name: 'week10-api'
+    static_configs:
+      - targets: ['host.docker.internal:3000']  # Dùng host.docker.internal để truy cập localhost từ Docker
+        labels:
+          service: 'week10-api'
+          env: 'dev'
+    
+    metrics_path: '/metrics'
+    scrape_interval: 10s      # Scrape mỗi 10 giây cho app
+    scrape_timeout: 5s
+
+  # Job 2: Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+# Optional: Remote write configuration (nếu muốn gửi metrics đến remote storage)
+# remote_write:
+#   - url: "http://remote-prometheus:9090/api/v1/write"
