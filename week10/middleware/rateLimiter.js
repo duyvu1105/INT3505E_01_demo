@@ -70,7 +70,7 @@ const apiLimiter = rateLimit({
   handler: (req, res) => {
     const route = req.route ? req.route.path : req.path;
     rateLimitCounter.inc({ route });
-    
+
     logger.warn('API rate limit exceeded', {
       ip: req.ip,
       route: route,
@@ -89,3 +89,4 @@ module.exports = {
   strictLimiter,
   apiLimiter
 };
+

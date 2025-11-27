@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 import uuid
 
-from .common import payments_db, api_keys, now_iso
+from ..common import payments_db, api_keys, now_iso
 
 bp_v2 = Blueprint('v2_payments', __name__)
 

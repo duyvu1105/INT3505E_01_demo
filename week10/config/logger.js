@@ -24,7 +24,7 @@ const consoleFormat = winston.format.combine(
 
 // Tạo logger instance
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: 'info',
   format: logFormat,
   defaultMeta: { service: 'week10-api' },
   transports: [
