@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Welcome to the Developer Portal</h1>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('docs') }}">API Documentation</a></li>
+                <li><a href="{{ url_for('index') }}">Home</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <h2>About This API</h2>
+        <p>This API allows you to manage a collection of books, including functionalities for authentication, book creation, retrieval, updating, and deletion.</p>
+        <h2>Getting Started</h2>
+        <p>To explore the API, please visit the <a href="{{ url_for('docs') }}">API Documentation</a>.</p>
+    </main>
+    <footer>
+        <p>&copy; 2025 Developer Portal</p>
+    </footer>
+</body>
+</html>

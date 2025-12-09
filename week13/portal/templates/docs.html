@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>API Documentation</h1>
+            <nav>
+                <ul>
+                    <li><a href="{{ url_for('index') }}">Home</a></li>
+                    <li><a href="{{ url_for('docs') }}">API Docs</a></li>
+                </ul>
+            </nav>
+        </header>
+        <main>
+            <h2>Books API</h2>
+            <p>Welcome to the Books API documentation. Below you will find details about the available endpoints.</p>
+            <h3>Endpoints</h3>
+            <ul>
+                <li><strong>GET /api/books</strong> - Retrieve all books</li>
+                <li><strong>GET /api/books/{id}</strong> - Retrieve a specific book by ID</li>
+                <li><strong>POST /api/books</strong> - Create a new book</li>
+                <li><strong>PUT /api/books/{id}</strong> - Update an existing book</li>
+                <li><strong>DELETE /api/books/{id}</strong> - Delete a book</li>
+                <li><strong>POST /api/auth/login</strong> - User login</li>
+                <li><strong>POST /api/auth/register</strong> - User registration</li>
+                <li><strong>GET /api/auth/me</strong> - Get current user information</li>
+            </ul>
+            <h3>Authentication</h3>
+            <p>Some endpoints require authentication. Use the token received upon login to access these endpoints.</p>
+            <h3>Swagger UI</h3>
+            <p>You can also view the API documentation in Swagger UI <a href="http://localhost:3000/api-docs" target="_blank">here</a>.</p>
+        </main>
+        <footer>
+            <p>&copy; 2025 Developer Portal</p>
+        </footer>
+    </div>
+</body>
+</html>

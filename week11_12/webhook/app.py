@@ -20,21 +20,13 @@ webhook_subscriptions = {
 # --- Webhook Logic ---
 
 def send_webhook(url, payload):
-    """
-    Sends a single webhook to the given URL in a separate thread.
-    """
     try:
-        # In a real-world scenario, you'd want more robust error handling,
-        # retries with exponential backoff, and logging.
         requests.post(url, json=payload, timeout=5)
         print(f"Sent webhook to {url}")
     except requests.exceptions.RequestException as e:
         print(f"Failed to send webhook to {url}: {e}")
 
 def notify_subscribers(event_type, data):
-    """
-    Notifies all subscribers for a given event type.
-    """
     if event_type not in webhook_subscriptions:
         print(f"No subscribers for event: {event_type}")
         return
@@ -44,7 +36,6 @@ def notify_subscribers(event_type, data):
         "data": data,
         "timestamp": time.time()
     }
-    
     for url in webhook_subscriptions[event_type]:
         # Start a new thread for each webhook to avoid blocking
         thread = threading.Thread(target=send_webhook, args=(url, payload))
@@ -53,10 +44,6 @@ def notify_subscribers(event_type, data):
 # --- API Endpoints ---
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
-    """
-    Endpoint for clients to subscribe to a webhook event.
-    Expects JSON: {"event_type": "...", "url": "..."}
-    """
     data = request.get_json()
     if not data or 'url' not in data or 'event_type' not in data:
         return jsonify({"error": "Invalid request. 'url' and 'event_type' are required."}), 400
@@ -76,14 +63,10 @@ def subscribe():
 
 @app.route('/trigger-event', methods=['POST'])
 def trigger_event():
-    """
-    A simple endpoint to manually trigger an event for demonstration.
-    """
     event_type = request.json.get('event_type')
     if not event_type:
         return "Please provide an event type.", 400
 
-    # Simulate some data for the event
     event_data = {
         "transaction_id": f"txn_{int(time.time())}",
         "amount": 100.00,
@@ -92,9 +75,7 @@ def trigger_event():
     if event_type == "payment.failed":
         event_data["reason"] = "Insufficient funds"
 
-    # Notify subscribers in the background
     notify_subscribers(event_type, event_data)
-    
     return f"Event '{event_type}' triggered. Notifications sent to subscribers."
 
 if __name__ == '__main__':
